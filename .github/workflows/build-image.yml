@@ -1,0 +1,73 @@
+name: Build Image
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron:  '2/15 * * * *'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - id: get-image
+        name: Get Image
+        run: |
+          date >> changes
+          podman image pull docker.io/library/fedora
+          imageDigest=`podman image inspect docker.io/library/fedora --format {{.Digest}}`
+          echo $imageDigest > lastimage
+          lastImage=`curl -L "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/latest/download/lastimage"`
+          echo "Digest: $imageDigest"
+          echo "Last: $lastImage"
+          if [ "$lastImage" != "$imageDigest" ]; then
+            echo "Image needs update"
+            echo -e "\nImage update:\n $imageDigest\n" >> changes
+            echo "::set-output name=image_change::true"
+          fi
+      - name: Reuse cached image
+        if: steps.get-image.outputs.image_change != 'true'
+        run: |
+          curl -L $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/latest/download/rootfs.tar.xz --output rootfs.tar.xz
+          unxz rootfs.tar.xz
+          podman import rootfs.tar fedora-update
+          podman create --name fedora-update fedora-update sleep 7200
+      - name: Use clean image
+        if: steps.get-image.outputs.image_change == 'true'
+        run: |
+          podman create --name fedora-update docker.io/library/fedora sleep 7200
+      - name: Apply updates
+        id: check-updates
+        run: |
+          podman start fedora-update
+          podman exec fedora-update sh -c 'rpm -qa --qf "%-30{name} %{version}-%{release}\n" | sort' > pre-update
+          podman exec fedora-update sh -c 'dnf update -y && dnf -y install podman podman-docker procps-ng openssh-server net-tools && dnf clean all && rm -rf /var/cache/yum'
+          podman exec fedora-update sh -c 'rpm -qa --qf "%-30{name} %{version}-%{release}\n" | sort' > post-update
+    
+          diff -u pre-update post-update > delta || delta=1                    
+          if [ ! -z "$delta" ]; then
+            echo "Package changes!"
+            echo -e "\nInstalled packages:\n\`\`\`" >> changes
+            grep '^+' delta | grep -v '+++' | sed 's/^\+//g' >> changes
+            echo "\`\`\`" >> changes
+            echo "::set-output name=package_change::true"
+          fi
+      - name: Prepare archive
+        if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
+        run: |
+            podman export --output rootfs.tar fedora-update
+            xz rootfs.tar
+      - name: Bump version and push tag
+        if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create a GitHub release
+        if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          bodyfile: changes
+          artifacts: "lastimage,rootfs.tar.xz"
