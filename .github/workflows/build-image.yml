@@ -5,6 +5,8 @@ on:
       - main
   schedule:
     - cron:  '2/15 * * * *'
+env:
+  IMAGE_TAG: 36
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,8 +16,8 @@ jobs:
         name: Get Image
         run: |
           date >> changes
-          podman image pull docker.io/library/fedora
-          imageDigest=`podman image inspect docker.io/library/fedora --format {{.Digest}}`
+          podman image pull docker.io/library/fedora:$IMAGE_TAG
+          imageDigest=`podman image inspect docker.io/library/fedora:$IMAGE_TAG --format {{.Digest}}`
           echo $imageDigest > lastimage
           lastImage=`curl -L "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/latest/download/lastimage"`
           echo "Digest: $imageDigest"
@@ -35,7 +37,7 @@ jobs:
       - name: Use clean image
         if: steps.get-image.outputs.image_change == 'true'
         run: |
-          podman create --name fedora-update docker.io/library/fedora sleep 7200
+          podman create --name fedora-update docker.io/library/fedora:$IMAGE_TAG sleep 7200
       - name: Apply updates
         id: check-updates
         run: |
