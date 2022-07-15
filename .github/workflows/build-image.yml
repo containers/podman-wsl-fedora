@@ -63,6 +63,9 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Make version file
+        run: |
+          echo ${{steps.tag_version.outputs.new_tag}} > version
       - name: Create a GitHub release
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
         uses: ncipollo/release-action@v1
@@ -70,4 +73,4 @@ jobs:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
           bodyfile: changes
-          artifacts: "lastimage,rootfs.tar.xz"
+          artifacts: "lastimage,rootfs.tar.xz,version"
