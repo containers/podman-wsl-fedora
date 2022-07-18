@@ -59,6 +59,7 @@ jobs:
         run: |
             podman export --output rootfs.tar fedora-update
             mkdir -p etc; touch etc/resolv.conf
+            tar --delete -f rootfs.tar etc/resolv.conf
             tar rf rootfs.tar --mode=644 --group=root --owner=root etc/resolv.conf
             xz rootfs.tar
       - name: Bump version and push tag
