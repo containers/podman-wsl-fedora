@@ -44,8 +44,6 @@ jobs:
           podman start fedora-update
           podman exec fedora-update sh -c 'rpm -qa --qf "%-30{name} %{version}-%{release}\n" | sort' > pre-update
           podman exec fedora-update sh -c 'dnf update -y && dnf -y install podman podman-docker procps-ng openssh-server net-tools && dnf clean all && rm -rf /var/cache/yum'
-          # fix bad perms
-          podman exec fedora-update sh -c 'chmod 644 /etc/resolv.conf'
           podman exec fedora-update sh -c 'rpm -qa --qf "%-30{name} %{version}-%{release}\n" | sort' > post-update
 
           diff -u pre-update post-update > delta || delta=1
@@ -60,6 +58,8 @@ jobs:
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
         run: |
             podman export --output rootfs.tar fedora-update
+            mkdir -p etc; touch etc/resolv.conf
+            tar rf rootfs.tar --mode=644 --group=root --owner=root etc/resolv.conf
             xz rootfs.tar
       - name: Bump version and push tag
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
