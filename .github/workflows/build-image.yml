@@ -3,8 +3,8 @@ on:
   push:
     branches:
       - main
-  schedule:
-    - cron:  '2 */3 * * *'
+  # schedule:
+  # - cron:  '2 */3 * * *'
 env:
   IMAGE_TAG: 36
 jobs:
