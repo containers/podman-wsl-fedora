@@ -3,8 +3,8 @@ on:
   push:
     branches:
       - main
-  # schedule:
-  # - cron:  '2 */3 * * *'
+  schedule:
+    - cron:  '2 * * * *'
 env:
   IMAGE_TAG: 36
 jobs:
@@ -59,7 +59,8 @@ jobs:
         run: |
             podman export --output rootfs.tar fedora-update
             mkdir -p etc; touch etc/resolv.conf
-            tar --delete -f rootfs.tar etc/resolv.conf
+            # Github actions runner has tar 1.30 which has a corruption bug with delete use more recent fedora version
+            podman run -v .:/mnt --security-opt label=disable fedora tar --delete -f /mnt/rootfs.tar etc/resolv.conf
             tar rf rootfs.tar --mode=644 --group=root --owner=root etc/resolv.conf
             xz rootfs.tar
       - name: Bump version and push tag
