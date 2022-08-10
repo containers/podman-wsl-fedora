@@ -4,7 +4,7 @@ on:
     branches:
       - main
   schedule:
-    - cron:  '2 */4 * * *'
+    - cron:  '2 */3 * * *'
 env:
   IMAGE_TAG: 36
 jobs:
