@@ -58,9 +58,10 @@ jobs:
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
         run: |
             podman export --output rootfs.tar fedora-update
+            # GNu tar has a corruption bugs with --delete, so use bsdtar to filter instead
+            podman run -v .:/mnt --security-opt label=disable fedora sh -c 'dnf -y install bsdtar && bsdtar -cf /mnt/new.tar --exclude etc/resolv.conf @/mnt/rootfs.tar'
+            mv new.tar rootfs.tar
             mkdir -p etc; touch etc/resolv.conf
-            # Github actions runner has tar 1.30 which has a corruption bug with delete use more recent fedora version
-            podman run -v .:/mnt --security-opt label=disable fedora tar --delete -f /mnt/rootfs.tar etc/resolv.conf
             tar rf rootfs.tar --mode=644 --group=root --owner=root etc/resolv.conf
             xz rootfs.tar
       - name: Bump version and push tag
