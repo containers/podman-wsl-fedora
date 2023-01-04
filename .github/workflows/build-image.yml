@@ -64,6 +64,7 @@ jobs:
             mkdir -p etc; touch etc/resolv.conf
             tar rf rootfs.tar --mode=644 --group=root --owner=root etc/resolv.conf
             xz rootfs.tar
+            shasum -a 256 rootfs.tar.xz > shasums
       - name: Bump version and push tag
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
         id: tag_version
@@ -80,4 +81,4 @@ jobs:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
           bodyfile: changes
-          artifacts: "lastimage,rootfs.tar.xz,version"
+          artifacts: "lastimage,rootfs.tar.xz,shasums,version"
