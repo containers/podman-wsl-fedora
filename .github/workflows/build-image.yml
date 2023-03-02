@@ -6,7 +6,7 @@ on:
   schedule:
     - cron:  '2 * * * *'
 env:
-  IMAGE_TAG: 37 # Fedora 37
+  IMAGE_TAG: 36 # Fedora 36
 jobs:
   build:
     runs-on: ubuntu-latest
