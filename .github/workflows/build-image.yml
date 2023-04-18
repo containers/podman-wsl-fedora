@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.18
       - id: get-image
         name: Get Image
         run: |
@@ -25,7 +28,7 @@ jobs:
           if [ "$lastImage" != "$imageDigest" ]; then
             echo "Image needs update"
             echo -e "\nImage update:\n $imageDigest\n" >> changes
-            echo "::set-output name=image_change::true"
+            echo "image_change=true" >> $GITHUB_OUTPUT
           fi
       - name: Reuse cached image
         if: steps.get-image.outputs.image_change != 'true'
@@ -52,8 +55,18 @@ jobs:
             echo -e "\nInstalled packages:\n\`\`\`" >> changes
             grep '^+' delta | grep -v '+++' | sed 's/^\+//g' >> changes
             echo "\`\`\`" >> changes
-            echo "::set-output name=package_change::true"
+            echo "package_change=true" >> $GITHUB_OUTPUT
           fi
+      - name: Add gvproxy vm
+        if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
+        run: |
+            set +o verbose
+            git clone https://github.com/containers/gvisor-tap-vsock
+            cd gvisor-tap-vsock
+            git checkout v0.6.1
+            HOME=/root make vm
+            podman cp bin/vm fedora-update:/usr/local/bin/vm  
+            cd ..
       - name: Prepare archive
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
         run: |
