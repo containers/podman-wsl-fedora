@@ -57,12 +57,16 @@ jobs:
             echo "\`\`\`" >> changes
             echo "package_change=true" >> $GITHUB_OUTPUT
           fi
-      - name: Add gvforwarder
+      - name: Add gvproxy vm
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
         run: |
             set +o verbose
-            curl -L -O https://github.com/containers/gvisor-tap-vsock/releases/download/v0.7.1/gvforwarder
-            podman cp gvforwarder fedora-update:/usr/local/bin/vm
+            git clone https://github.com/containers/gvisor-tap-vsock
+            cd gvisor-tap-vsock
+            git checkout v0.6.1
+            make vm
+            podman cp bin/vm fedora-update:/usr/local/bin/vm  
+            cd ..
       - name: Prepare archive
         if: steps.get-image.outputs.image_change == 'true' || steps.check-updates.outputs.package_change == 'true'
         run: |
